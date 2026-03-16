@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape del OVNI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --phosphor-pink: #FF2C86;
+            --phosphor-glow: rgba(255, 44, 134, 0.6);
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: var(--phosphor-pink);
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background-color: #0a0a0a;
+            overflow: hidden;
+            border: 4px solid #222;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 100px rgba(255, 44, 134, 0.05);
+        }
+        /* CRT Effect Overlay */
+        #game-container::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 100;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+        #game-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: radial-gradient(rgba(255, 44, 134, 0.1) 0%, rgba(0, 0, 0, 0.4) 100%);
+            z-index: 99;
+            pointer-events: none;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            5% { opacity: 0.95; }
+            10% { opacity: 0.9; }
+            15% { opacity: 0.95; }
+            20% { opacity: 0.98; }
+            25% { opacity: 0.95; }
+            30% { opacity: 0.9; }
+            100% { opacity: 0.98; }
+        }
+        .screen {
+            animation: flicker 0.15s infinite;
+        }
+        canvas {
+            display: block;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 10;
+            text-align: center;
+        }
+        .hidden {
+            display: none !important;
+        }
+        h1 {
+            color: var(--phosphor-pink);
+            text-shadow: 0 0 10px var(--phosphor-glow);
+            margin-bottom: 30px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 18px;
+            line-height: 1.5;
+            text-transform: uppercase;
+        }
+        p {
+            margin-bottom: 30px;
+            font-size: 12px;
+            max-width: 85%;
+            line-height: 1.8;
+            color: var(--phosphor-pink);
+            font-weight: 400;
+            text-shadow: 0 0 5px var(--phosphor-glow);
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 14px;
+            font-family: 'Press Start 2P', cursive;
+            background-color: transparent;
+            color: var(--phosphor-pink);
+            border: 2px solid var(--phosphor-pink);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            margin: 10px;
+            font-weight: 400;
+            box-shadow: 0 0 10px var(--phosphor-glow);
+        }
+        button:hover {
+            background-color: var(--phosphor-pink);
+            color: #000;
+            box-shadow: 0 0 20px var(--phosphor-pink);
+        }
+        #ui-layer {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+            color: var(--phosphor-pink);
+            font-family: 'Press Start 2P', cursive;
+            font-size: 8px;
+            text-transform: uppercase;
+        }
+        #energy-bar-container {
+            width: 120px;
+            height: 10px;
+            border: 2px solid var(--phosphor-pink);
+            background-color: rgba(255, 44, 134, 0.1);
+            margin-top: 5px;
+            border-radius: 0;
+            overflow: hidden;
+        }
+        #energy-bar {
+            width: 100%;
+            height: 100%;
+            background-color: var(--phosphor-pink);
+            transition: width 0.1s linear;
+            box-shadow: 0 0 10px var(--phosphor-pink);
+        }
+        #distance-counter {
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Capa de Interfaz de Usuario -->
+    <div id="ui-layer" class="hidden">
+        <div>
+            <div>Energía: <span id="energy-text">100</span></div>
+            <div id="energy-bar-container">
+                <div id="energy-bar"></div>
+            </div>
+        </div>
+        <div id="distance-counter">Tiempo: 60s</div>
+    </div>
+
+    <!-- Pantalla de Inicio -->
+    <div id="start-screen" class="screen">
+        <div class="crt-bg-elements">
+            <div style="position: absolute; top: 10%; left: 10%; font-size: 20px; opacity: 0.5;">★</div>
+            <div style="position: absolute; top: 20%; right: 15%; font-size: 15px; opacity: 0.3;">✦</div>
+            <div style="position: absolute; bottom: 25%; left: 20%; font-size: 18px; opacity: 0.4;">★</div>
+            <div style="position: absolute; bottom: 15%; right: 10%; font-size: 22px; opacity: 0.2;">✦</div>
+            <div style="position: absolute; bottom: 5%; left: 0; width: 100%; height: 2px; background: var(--phosphor-pink); opacity: 0.3; box-shadow: 0 0 10px var(--phosphor-pink);"></div>
+            <!-- Pixel Art Alien (Simple CSS) -->
+            <div style="position: absolute; top: 15%; right: 25%; width: 20px; height: 15px; background: var(--phosphor-pink); box-shadow: -5px 5px 0 var(--phosphor-pink), 5px 5px 0 var(--phosphor-pink), -10px 10px 0 var(--phosphor-pink), 10px 10px 0 var(--phosphor-pink); opacity: 0.6;"></div>
+        </div>
+        <h1 style="text-align: center; white-space: pre-line; margin-bottom: 10px;">Flugg regresa
+a casa</h1>
+        <p>Flugg ha robado el Núcleo Azul para salvar su planeta Auralis, que se está quedando sin energía. Ahora debe cruzar el espacio esquivando meteoritos y enemigos, mientras recolecta orbes de energía para mantener su nave en funcionamiento y lograr volver a casa antes de que sea demasiado tarde</p>
+        <button id="start-btn">Comenzar</button>
+        <div style="margin-top: 20px; font-size: 8px; opacity: 0.6; font-family: 'Press Start 2P';">SYSTEM STATUS: NOMINAL</div>
+    </div>
+
+    <!-- Pantalla de Game Over -->
+    <div id="game-over-screen" class="screen hidden">
+        <h1>GAME OVER</h1>
+        <p style="text-align: center; font-size: 16px; margin-top: 20px;">Oh no… Flugg no logró regresar a Auralis. El Núcleo se quedó sin energía</p>
+        <div style="display: flex; gap: 10px;">
+            <button id="restart-btn">Reintentar</button>
+            <button class="menu-btn">Menú</button>
+        </div>
+    </div>
+
+    <!-- Pantalla de Victoria -->
+    <div id="victory-screen" class="screen hidden">
+        <h1>¡VICTORIA!</h1>
+        <p>¡Victoria! conseguiste que Flugg llegará a su planeta Auralis y devolver la luz a su planeta</p>
+        <p>Energía final: <span id="final-energy" style="font-weight: 800;"></span></p>
+        <div style="display: flex; gap: 10px;">
+            <button id="play-again-btn">Jugar de Nuevo</button>
+            <button class="menu-btn">Menú</button>
+        </div>
+    </div>
+
+    <!-- Lienzo del Juego -->
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+</div>
+
+<script>
+    // --- Configuración e Inicialización ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Elementos de la UI
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const victoryScreen = document.getElementById('victory-screen');
+    const uiLayer = document.getElementById('ui-layer');
+    const energyText = document.getElementById('energy-text');
+    const energyBar = document.getElementById('energy-bar');
+    const distanceCounter = document.getElementById('distance-counter');
+    const finalEnergyText = document.getElementById('final-energy');
+    
+    // Botones
+    document.getElementById('start-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', startGame);
+    document.getElementById('play-again-btn').addEventListener('click', startGame);
+    
+    document.querySelectorAll('.menu-btn').forEach(btn => {
+        btn.addEventListener('click', showMenu);
+    });
+
+    function showMenu() {
+        gameOverScreen.classList.add('hidden');
+        victoryScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+        uiLayer.classList.add('hidden');
+        isPlaying = false;
+        if (animationId) cancelAnimationFrame(animationId);
+        
+        // Limpiar canvas y dibujar fondo inicial
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < 50; i++) {
+            let star = new Star();
+            star.draw();
+        }
+    }
+
+    // Variables de estado del juego
+    let isPlaying = false;
+    let animationId;
+    let keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false };
+    
+    // Variables del jugador y progreso
+    let player;
+    let energy;
+    let distance;
+    let timeLeft;
+    let orbSpawnTimer;
+    let enemySpawnTimer;
+    const TOTAL_TIME = 60; // 60 segundos
+    const TOTAL_DISTANCE = 25200; // Distancia para llegar a la meta en 60s (60fps * 60s * 7 speed)
+    let goal;
+    
+    // Arrays de entidades
+    let stars = [];
+    let obstacles = [];
+    let items = [];
+    let enemies = [];
+    let lasers = [];
+    let particles = [];
+
+    // --- Clases del Juego ---
+
+    // Cargar imagen del alien
+    const alienImg = new Image();
+    alienImg.src = '/assets/alien.svg';
+
+    const enemyImg = new Image();
+    enemyImg.src = '/assets/alien malo.svg';
+
+    const goalImg = new Image();
+    goalImg.src = '/assets/Auralis.svg';
+
+    class Player {
+        constructor() {
+            this.width = 40;
+            this.height = 40;
+            this.x = canvas.width / 2 - this.width / 2;
+            this.y = canvas.height - 80;
+            this.speed = 7;
+        }
+
+        update() {
+            if (alienImg.complete && alienImg.naturalWidth > 0) {
+                this.height = this.width * (alienImg.naturalHeight / alienImg.naturalWidth);
+            }
+            let isDiagonalUp = (keys.ArrowLeft || keys.ArrowRight) && keys.ArrowUp;
+            
+            if (isDiagonalUp) {
+                // Velocidad diagonal arriba = 5 (Vx=4.81, Vy=1.37 para mantener ratio 7:2)
+                if (keys.ArrowLeft && this.x > 0) this.x -= 4.81;
+                if (keys.ArrowRight && this.x < canvas.width - this.width) this.x += 4.81;
+                if (this.y > 0) this.y -= 1.37;
+            } else {
+                if (keys.ArrowLeft && this.x > 0) this.x -= this.speed;
+                if (keys.ArrowRight && this.x < canvas.width - this.width) this.x += this.speed;
+                if (keys.ArrowUp && this.y > 0) this.y -= 2;
+                if (keys.ArrowDown && this.y < canvas.height - this.height) this.y += this.speed;
+            }
+        }
+
+        draw() {
+            if (alienImg.complete && alienImg.naturalWidth > 0) {
+                ctx.drawImage(alienImg, this.x, this.y, this.width, this.height);
+            } else {
+                // Fallback mientras carga
+                ctx.fillStyle = '#FF2C86';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+    }
+
+    class Star {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2 + 1;
+            this.speed = this.size * 2;
+        }
+
+        update() {
+            this.y += this.speed;
+            if (this.y > canvas.height) {
+                this.y = 0;
+                this.x = Math.random() * canvas.width;
+            }
+        }
+
+        draw() {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+        }
+    }
+
+    class Asteroid {
+        constructor() {
+            this.size = Math.random() * 20 + 20;
+            this.width = this.size;
+            this.height = this.size;
+            this.x = Math.random() * (canvas.width - this.width);
+            this.y = -this.height;
+            this.speed = Math.random() * 2 + 5;
+            this.rotation = 0;
+            this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+            
+            // Generar forma irregular
+            this.points = [];
+            for(let i=0; i<8; i++) {
+                let angle = (i/8) * Math.PI * 2;
+                let r = this.size/2 * (0.7 + Math.random()*0.3);
+                this.points.push({x: Math.cos(angle)*r, y: Math.sin(angle)*r});
+            }
+        }
+
+        update() {
+            this.y += this.speed;
+            this.rotation += this.rotationSpeed;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x + this.width/2, this.y + this.height/2);
+            ctx.rotate(this.rotation);
+            ctx.fillStyle = '#888';
+            ctx.beginPath();
+            for(let i=0; i<this.points.length; i++) {
+                if(i===0) ctx.moveTo(this.points[i].x, this.points[i].y);
+                else ctx.lineTo(this.points[i].x, this.points[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            // Detalles del asteroide
+            ctx.fillStyle = '#666';
+            ctx.beginPath();
+            ctx.arc(-this.size/6, -this.size/6, this.size/6, 0, Math.PI*2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+    }
+
+    class EnergyOrb {
+        constructor() {
+            this.size = 15;
+            this.width = this.size * 2;
+            this.height = this.size * 2;
+            this.x = Math.random() * (canvas.width - this.width);
+            this.y = -this.height;
+            this.speed = 6;
+            this.pulse = 0;
+        }
+
+        update() {
+            this.y += this.speed;
+            this.pulse += 0.1;
+        }
+
+        draw() {
+            let pulseSize = Math.sin(this.pulse) * 3;
+            
+            // Brillo exterior
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#FF2C86';
+            
+            ctx.fillStyle = '#FF2C86';
+            ctx.beginPath();
+            ctx.arc(this.x + this.size, this.y + this.size, this.size + pulseSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Centro brillante
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(this.x + this.size, this.y + this.size, (this.size + pulseSize) * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0; // Reset shadow
+        }
+    }
+
+    class Enemy {
+        constructor() {
+            this.width = 40;
+            this.height = 30;
+            this.x = Math.random() * (canvas.width - this.width);
+            this.y = -this.height;
+            this.speed = 4;
+            this.shootTimer = 0;
+            this.shootInterval = Math.random() * 60 + 60; // Dispara cada 1-2 segundos aprox
+        }
+
+        update() {
+            if (enemyImg.complete && enemyImg.naturalWidth > 0) {
+                this.height = this.width * (enemyImg.naturalHeight / enemyImg.naturalWidth);
+            }
+            this.y += this.speed;
+            this.shootTimer++;
+            if (this.shootTimer >= this.shootInterval) {
+                this.shoot();
+                this.shootTimer = 0;
+            }
+        }
+
+        shoot() {
+            lasers.push(new Laser(this.x + this.width / 2 - 2, this.y + this.height));
+        }
+
+        draw() {
+            if (enemyImg.complete && enemyImg.naturalWidth > 0) {
+                ctx.drawImage(enemyImg, this.x, this.y, this.width, this.height);
+            } else {
+                ctx.fillStyle = '#f00';
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width/2, this.y + this.height);
+                ctx.lineTo(this.x, this.y);
+                ctx.lineTo(this.x + this.width, this.y);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Ojo del enemigo
+                ctx.fillStyle = '#ff0';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width/2, this.y + this.height/3, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+    }
+
+    class Laser {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.width = 4;
+            this.height = 15;
+            this.speed = 7;
+        }
+
+        update() {
+            this.y += this.speed;
+        }
+
+        draw() {
+            ctx.fillStyle = '#f0f';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            
+            // Brillo
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(this.x + 1, this.y, 2, this.height);
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.size = Math.random() * 4 + 2;
+            this.speedX = (Math.random() - 0.5) * 8;
+            this.speedY = (Math.random() - 0.5) * 8;
+            this.color = color;
+            this.life = 30;
+        }
+
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            this.life--;
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = this.life / 30;
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    class Goal {
+        constructor() {
+            this.width = 150;
+            this.height = 150;
+            this.x = canvas.width / 2 - this.width / 2;
+            this.y = 20;
+            this.opacity = 0;
+        }
+
+        update() {
+            if (goalImg.complete && goalImg.naturalWidth > 0) {
+                this.height = this.width * (goalImg.naturalHeight / goalImg.naturalWidth);
+            }
+            if (this.opacity < 1) {
+                this.opacity += 1 / 90; // 1.5 segundos a 60fps
+                if (this.opacity > 1) this.opacity = 1;
+            }
+        }
+
+        draw() {
+            ctx.globalAlpha = this.opacity;
+            if (goalImg.complete && goalImg.naturalWidth > 0) {
+                ctx.drawImage(goalImg, this.x, this.y, this.width, this.height);
+            } else {
+                ctx.fillStyle = '#FF2C86';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#FF2C86';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 20px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText('META FINAL', this.x + this.width/2, this.y + this.height/2 + 7);
+                ctx.shadowBlur = 0;
+            }
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    // --- Controles ---
+    window.addEventListener('keydown', (e) => {
+        if (keys.hasOwnProperty(e.code)) {
+            keys[e.code] = true;
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (keys.hasOwnProperty(e.code)) {
+            keys[e.code] = false;
+        }
+    });
+
+    // --- Funciones Principales ---
+
+    function startGame() {
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        victoryScreen.classList.add('hidden');
+        uiLayer.classList.remove('hidden');
+
+        player = new Player();
+        energy = 100;
+        distance = 0;
+        timeLeft = TOTAL_TIME;
+        orbSpawnTimer = 0;
+        enemySpawnTimer = 0;
+        goal = null;
+        
+        stars = [];
+        for (let i = 0; i < 50; i++) {
+            stars.push(new Star());
+        }
+        
+        obstacles = [];
+        items = [];
+        enemies = [];
+        lasers = [];
+        particles = [];
+
+        isPlaying = true;
+        updateUI();
+        
+        if (animationId) cancelAnimationFrame(animationId);
+        gameLoop();
+    }
+
+    function updateUI() {
+        energyText.innerText = Math.floor(energy);
+        
+        // Actualizar barra de energía
+        let energyPercent = Math.max(0, Math.min(100, energy));
+        energyBar.style.width = energyPercent + '%';
+        
+        // Mantener el color rosa fósforo pero con variaciones de brillo según la energía
+        if (energy > 60) {
+            energyBar.style.backgroundColor = '#FF2C86';
+            energyBar.style.boxShadow = '0 0 15px #FF2C86';
+        } else if (energy > 30) {
+            energyBar.style.backgroundColor = '#D1246D';
+            energyBar.style.boxShadow = '0 0 10px #D1246D';
+        } else {
+            energyBar.style.backgroundColor = '#A31C55';
+            energyBar.style.boxShadow = '0 0 5px #A31C55';
+        }
+
+        // Actualizar tiempo
+        distanceCounter.innerText = `TIME: ${Math.ceil(timeLeft)} s`;
+    }
+
+    function createExplosion(x, y, color) {
+        for (let i = 0; i < 20; i++) {
+            particles.push(new Particle(x, y, color));
+        }
+    }
+
+    function checkCollision(rect1, rect2) {
+        return (
+            rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y
+        );
+    }
+
+    function gameOver() {
+        isPlaying = false;
+        uiLayer.classList.add('hidden');
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    function victory() {
+        isPlaying = false;
+        uiLayer.classList.add('hidden');
+        finalEnergyText.innerText = Math.floor(energy);
+        victoryScreen.classList.remove('hidden');
+    }
+
+    function gameLoop() {
+        if (!isPlaying) return;
+
+        // Limpiar canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Actualizar distancia (simula el movimiento hacia adelante)
+        distance += 7;
+        timeLeft -= 1/60; // Reducir tiempo (asumiendo 60fps)
+        
+        // Consumo pasivo de energía
+        energy -= 0.05;
+
+        // Verificar condiciones de fin de juego
+        if (energy <= 0 || timeLeft <= 0) {
+            gameOver();
+            return;
+        }
+
+        // --- Generación de Entidades ---
+        // Aumentar dificultad ligeramente con la distancia
+        let difficultyMultiplier = 1 + (distance / TOTAL_DISTANCE);
+        
+        // Solo generar obstáculos si la meta no ha aparecido
+        if (!goal) {
+            // Generar Asteroides (más cantidad pero con espacio)
+            if (Math.random() < 0.025 * difficultyMultiplier) {
+                let newAsteroid = new Asteroid();
+                // Evitar que se encimen o se alineen demasiado cerca (radio de 70px)
+                let tooClose = obstacles.some(obs => 
+                    obs.y < 150 && Math.sqrt(Math.pow(obs.x - newAsteroid.x, 2) + Math.pow(obs.y - newAsteroid.y, 2)) < 70
+                );
+                if (!tooClose) obstacles.push(newAsteroid);
+            }
+
+            // Generar Orbes de Energía cada 3 segundos
+            orbSpawnTimer += 1/60;
+            if (orbSpawnTimer >= 3) {
+                items.push(new EnergyOrb());
+                orbSpawnTimer = 0;
+            }
+
+            // Generar dos naves enemigas cada 3 segundos
+            enemySpawnTimer += 1/60;
+            if (enemySpawnTimer >= 3) {
+                let e1 = new Enemy();
+                let e2 = new Enemy();
+                
+                // Asegurar separación horizontal (mínimo 150px)
+                let attempts = 0;
+                while (Math.abs(e2.x - e1.x) < 150 && attempts < 20) {
+                    e2.x = Math.random() * (canvas.width - e2.width);
+                    attempts++;
+                }
+                
+                // Escalonar entrada vertical para evitar alineación horizontal (mínimo 120px)
+                e2.y = e1.y - 120; 
+                
+                enemies.push(e1);
+                enemies.push(e2);
+                enemySpawnTimer = 0;
+            }
+
+            // Crear la meta cuando falten 10 segundos
+            if (timeLeft <= 10) {
+                goal = new Goal();
+            }
+        }
+
+        // --- Actualizar y Dibujar ---
+
+        // Estrellas (Fondo)
+        stars.forEach(star => {
+            star.update();
+            star.draw();
+        });
+
+        // Jugador
+        player.update();
+        player.draw();
+
+        // Meta Final
+        if (goal) {
+            goal.update();
+            goal.draw();
+            if (checkCollision(player, goal)) {
+                victory();
+                return;
+            }
+        }
+
+        // Asteroides
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let obs = obstacles[i];
+            obs.update();
+            obs.draw();
+
+            // Colisión con jugador
+            if (checkCollision(player, obs)) {
+                energy -= 10;
+                createExplosion(obs.x + obs.width/2, obs.y + obs.height/2, '#888');
+                obstacles.splice(i, 1);
+                continue;
+            }
+
+            // Eliminar si sale de pantalla
+            if (obs.y > canvas.height) {
+                obstacles.splice(i, 1);
+            }
+        }
+
+        // Orbes de Energía
+        for (let i = items.length - 1; i >= 0; i--) {
+            let item = items[i];
+            item.update();
+            item.draw();
+
+            // Colisión con jugador
+            if (checkCollision(player, item)) {
+                energy += 14;
+                createExplosion(item.x + item.width/2, item.y + item.height/2, '#a0f');
+                items.splice(i, 1);
+                continue;
+            }
+
+            if (item.y > canvas.height) items.splice(i, 1);
+        }
+
+        // Enemigos
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let enemy = enemies[i];
+            enemy.update();
+            enemy.draw();
+
+            if (checkCollision(player, enemy)) {
+                energy -= 10;
+                createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#f00');
+                enemies.splice(i, 1);
+                continue;
+            }
+
+            if (enemy.y > canvas.height) enemies.splice(i, 1);
+        }
+
+        // Láseres
+        for (let i = lasers.length - 1; i >= 0; i--) {
+            let laser = lasers[i];
+            laser.update();
+            laser.draw();
+
+            if (checkCollision(player, laser)) {
+                energy -= 10;
+                createExplosion(laser.x, laser.y + laser.height, '#f0f');
+                lasers.splice(i, 1);
+                continue;
+            }
+
+            if (laser.y > canvas.height) lasers.splice(i, 1);
+        }
+
+        // Partículas
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.update();
+            p.draw();
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        updateUI();
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // Dibujar fondo inicial estático
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < 50; i++) {
+        let star = new Star();
+        star.draw();
+    }
+</script>
+</body>
+</html>
